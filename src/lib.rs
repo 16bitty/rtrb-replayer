@@ -94,6 +94,8 @@ pub struct RingBuffer<T> {
     /// The queue capacity.
     capacity: usize,
 
+    resend_window: usize,
+
     /// Indicates that dropping a `RingBuffer<T>` may drop elements of type `T`.
     _marker: PhantomData<T>,
 }
@@ -120,12 +122,15 @@ impl<T> RingBuffer<T> {
     /// ```
     #[allow(clippy::new_ret_no_self)]
     #[must_use]
-    pub fn new(capacity: usize) -> (Producer<T>, Consumer<T>) {
+    pub fn new(capacity: usize, resend_window: usize) -> (Producer<T>, Consumer<T>) {
+        assert!(resend_window <= capacity, "Resend window cannot exceed capacity");
+        
         let buffer = Arc::new(RingBuffer {
             head: CachePadded::new(AtomicUsize::new(0)),
             tail: CachePadded::new(AtomicUsize::new(0)),
             data_ptr: ManuallyDrop::new(Vec::with_capacity(capacity)).as_mut_ptr(),
             capacity,
+            resend_window,
             _marker: PhantomData,
         });
         let p = Producer {
@@ -454,15 +459,16 @@ impl<T> Producer<T> {
     /// For performance, this special case is immplemented separately.
     fn next_tail(&self) -> Option<usize> {
         let tail = self.cached_tail.get();
+        let max_advance = self.buffer.capacity - self.buffer.resend_window;
 
         // Check if the queue is *possibly* full.
-        if self.buffer.distance(self.cached_head.get(), tail) == self.buffer.capacity {
+        if self.buffer.distance(self.cached_head.get(), tail) >= max_advance {
             // Refresh the head ...
             let head = self.buffer.head.load(Ordering::Acquire);
             self.cached_head.set(head);
 
             // ... and check if it's *really* full.
-            if self.buffer.distance(head, tail) == self.buffer.capacity {
+            if self.buffer.distance(head, tail) >= max_advance {
                 return None;
             }
         }
