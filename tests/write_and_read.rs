@@ -6,7 +6,7 @@ use rtrb::RingBuffer;
 
 #[test]
 fn write_and_read() {
-    let (mut p, mut c) = RingBuffer::new(2);
+    let (mut p, mut c) = RingBuffer::new(2, 0);
     assert_eq!(p.write(&[10, 11]).unwrap(), 2);
     // Does nothing:
     assert!(p.flush().is_ok());
@@ -42,20 +42,20 @@ fn write_and_read() {
 
 #[test]
 fn write_empty_buf() {
-    let (mut p, _c) = RingBuffer::new(2);
+    let (mut p, _c) = RingBuffer::new(2, 0);
     assert_eq!(p.write(&[]).unwrap(), 0);
 }
 
 #[test]
 fn read_empty_buf() {
-    let (mut p, mut c) = RingBuffer::new(2);
+    let (mut p, mut c) = RingBuffer::new(2, 0);
     assert_eq!(p.push(99), Ok(()));
     assert_eq!(c.read(&mut []).unwrap(), 0);
 }
 
 #[test]
 fn write_error() {
-    let (mut p, _c) = RingBuffer::new(1);
+    let (mut p, _c) = RingBuffer::new(1, 0);
     assert_eq!(p.push(10), Ok(()));
     assert_eq!(
         p.write(&[99]).unwrap_err().kind(),
@@ -65,7 +65,7 @@ fn write_error() {
 
 #[test]
 fn read_error() {
-    let (_p, mut c) = RingBuffer::new(1);
+    let (_p, mut c) = RingBuffer::new(1, 0);
     let mut buf = [0];
     assert_eq!(
         c.read(&mut buf).unwrap_err().kind(),

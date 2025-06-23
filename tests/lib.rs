@@ -3,7 +3,7 @@ use rtrb::RingBuffer;
 #[test]
 fn capacity() {
     for i in 0..10 {
-        let (p, c) = RingBuffer::<i32>::new(i);
+        let (p, c) = RingBuffer::<i32>::new(i, 0);
         assert_eq!(p.buffer().capacity(), i);
         assert_eq!(c.buffer().capacity(), i);
     }
@@ -11,7 +11,7 @@ fn capacity() {
 
 #[test]
 fn zero_capacity() {
-    let (mut p, mut c) = RingBuffer::<i32>::new(0);
+    let (mut p, mut c) = RingBuffer::<i32>::new(0, 0);
 
     assert_eq!(p.slots(), 0);
     assert_eq!(c.slots(), 0);
@@ -28,7 +28,7 @@ fn zero_sized_type() {
     struct ZeroSized;
     assert_eq!(std::mem::size_of::<ZeroSized>(), 0);
 
-    let (mut p, mut c) = RingBuffer::new(1);
+    let (mut p, mut c) = RingBuffer::new(1, 0);
     assert_eq!(p.buffer().capacity(), 1);
     assert_eq!(p.slots(), 1);
     assert_eq!(c.slots(), 0);
@@ -45,7 +45,7 @@ fn zero_sized_type() {
 #[test]
 fn parallel() {
     const COUNT: usize = if cfg!(miri) { 1_000 } else { 100_000 };
-    let (mut p, mut c) = RingBuffer::new(3);
+    let (mut p, mut c) = RingBuffer::new(3, 0);
     let pop_thread = std::thread::spawn(move || {
         for i in 0..COUNT {
             loop {
@@ -91,7 +91,7 @@ fn drops() {
         let additional = rng.gen_range(0..50);
 
         DROPS.store(0, Ordering::SeqCst);
-        let (mut p, mut c) = RingBuffer::new(50);
+        let (mut p, mut c) = RingBuffer::new(50, 0);
         let pop_thread = std::thread::spawn(move || {
             for _ in 0..steps {
                 while c.pop().is_err() {}
@@ -120,7 +120,7 @@ fn drops() {
 
 #[test]
 fn trait_impls() {
-    let (mut p, mut c) = RingBuffer::<u8>::new(0);
+    let (mut p, mut c) = RingBuffer::<u8>::new(0, 0);
 
     assert!(format!("{:?}", p.buffer()).starts_with("RingBuffer {"));
     assert!(format!("{:?}", p).starts_with("Producer {"));
@@ -133,7 +133,7 @@ fn trait_impls() {
     assert_eq!(format!("{:?}", c.peek().unwrap_err()), "Empty");
     assert_eq!(c.peek().unwrap_err().to_string(), "empty ring buffer");
 
-    let (another_p, another_c) = RingBuffer::<u8>::new(0);
+    let (another_p, another_c) = RingBuffer::<u8>::new(0, 0);
     assert_ne!(p, another_p);
     assert_ne!(c, another_c);
 }
@@ -144,7 +144,7 @@ fn no_race_with_is_abandoned() {
     // NB: We give Miri multiple chances to find probabilistic bugs,
     //     see https://github.com/rust-lang/rust/issues/117485:
     for _ in 0..5 {
-        let (p, c) = RingBuffer::<u8>::new(7);
+        let (p, c) = RingBuffer::<u8>::new(7, 0);
         let t = std::thread::spawn(move || {
             unsafe { V = 10 };
             drop(p);
@@ -157,3 +157,4 @@ fn no_race_with_is_abandoned() {
         t.join().unwrap();
     }
 }
+
