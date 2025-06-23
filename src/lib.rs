@@ -459,16 +459,15 @@ impl<T> Producer<T> {
     /// For performance, this special case is immplemented separately.
     fn next_tail(&self) -> Option<usize> {
         let tail = self.cached_tail.get();
-        let max_advance = self.buffer.capacity - self.buffer.resend_window;
 
         // Check if the queue is *possibly* full.
-        if self.buffer.distance(self.cached_head.get(), tail) >= max_advance {
+        if self.buffer.distance(self.cached_head.get(), tail) >= self.max_advance() {
             // Refresh the head ...
             let head = self.buffer.head.load(Ordering::Acquire);
             self.cached_head.set(head);
 
             // ... and check if it's *really* full.
-            if self.buffer.distance(head, tail) >= max_advance {
+            if self.buffer.distance(head, tail) >= self.max_advance() {
                 return None;
             }
         }
