@@ -728,6 +728,107 @@ impl<T> Consumer<T> {
         }
         Some(head)
     }
+
+    /// Get read-only access to the history window
+    pub fn history(&self) -> HistoryWindow<'_, T> {
+        // Refresh positions to ensure current state
+        let head = self.cached_head.get();
+        let tail = self.buffer.tail.load(Ordering::Acquire);
+        self.cached_tail.set(tail);
+        
+        let distance = self.buffer.distance(head, tail);
+        
+        HistoryWindow {
+            buffer: &self.buffer,
+            start: head,
+            length: distance,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Get the current virtual head position
+    pub fn virtual_head(&self) -> usize {
+        self.buffer.tail.load(Ordering::Acquire);
+        self.cached_head.get()
+    }
+}
+
+/// Read-only view into the ring buffer's history
+#[derive(Debug)]
+pub struct HistoryWindow<'a, T> {
+    buffer: &'a RingBuffer<T>,
+    start: usize,     // Virtual start position
+    length: usize,    // Number of messages in history
+    _marker: PhantomData<&'a T>,
+}
+
+impl<'a, T> HistoryWindow<'a, T> {
+    /// Get message by virtual index
+    pub fn get(&self, virtual_index: usize) -> Option<&T> {
+        if virtual_index < self.start || virtual_index >= self.start + self.length {
+            return None;
+        }
+
+        let physical_pos = self.buffer.collapse_position(virtual_index);
+        // SAFETY: Index is within valid range
+        Some(unsafe { &*self.buffer.slot_ptr(physical_pos) })
+    }
+
+    /// Iterate over messages in storage order
+    pub fn iter(&self) -> HistoryIter<'_, T> {
+        HistoryIter {
+            window: self,
+            current: self.start,
+            remaining: self.length,
+        }
+    }
+
+    /// Get the starting index
+    pub fn start_index(&self) -> usize {
+        self.start
+    }
+
+    /// Get the ending index
+    pub fn end_index(&self) -> usize {
+        self.start + self.length
+    }
+
+    /// Get the number of messages in the history window
+    pub fn len(&self) -> usize {
+        self.length
+    }
+
+    /// Check if the history window is empty
+    pub fn is_empty(&self) -> bool {
+        self.length == 0
+    }
+}
+
+/// Iterator over history window
+#[derive(Debug)]
+pub struct HistoryIter<'a, T> {
+    window: &'a HistoryWindow<'a, T>,
+    current: usize,
+    remaining: usize,
+}
+
+impl<'a, T> Iterator for HistoryIter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.remaining == 0 {
+            return None;
+        }
+
+        let result = self.window.get(self.current);
+        self.current = self.window.buffer.increment1(self.current);
+        self.remaining -= 1;
+        result
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, Some(self.remaining))
+    }
 }
 
 /// Extension trait used to provide a [`copy_to_uninit()`](CopyToUninit::copy_to_uninit)
