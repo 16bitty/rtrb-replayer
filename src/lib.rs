@@ -453,6 +453,11 @@ impl<T> Producer<T> {
         &self.buffer
     }
 
+    /// Get maximum allowed advance from given position
+    pub fn max_advance(&self) -> usize {
+        self.buffer.capacity - self.buffer.resend_window
+    }
+
     /// Get the tail position for writing the next slot, if available.
     ///
     /// This is a strict subset of the functionality implemented in `write_chunk_uninit()`.
@@ -460,14 +465,14 @@ impl<T> Producer<T> {
     fn next_tail(&self) -> Option<usize> {
         let tail = self.cached_tail.get();
 
-        // Check if the queue is *possibly* full.
+        // Fast-path check with cached head
         if self.buffer.distance(self.cached_head.get(), tail) >= self.max_advance() {
-            // Refresh the head ...
+            // Re-check with updated head
             let head = self.buffer.head.load(Ordering::Acquire);
             self.cached_head.set(head);
-
-            // ... and check if it's *really* full.
+            
             if self.buffer.distance(head, tail) >= self.max_advance() {
+                //Block
                 return None;
             }
         }

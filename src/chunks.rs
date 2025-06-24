@@ -264,11 +264,6 @@ impl<T> Producer<T> {
     pub fn distance_from(&self, position: usize) -> usize {
         self.buffer.distance(position, self.cached_tail.get())
     }
-    
-    /// Get maximum allowed advance from given position
-    pub fn max_advance(&self) -> usize {
-        self.buffer.capacity - self.buffer.resend_window
-    }
 }
 
 impl<T> Consumer<T> {
@@ -319,11 +314,6 @@ impl<T> Consumer<T> {
             second_len: n - first_len,
             consumer: self,
         })
-    }
-
-    /// Get current read position
-    pub fn position(&self) -> usize {
-        self.cached_head.get()
     }
 }
 
