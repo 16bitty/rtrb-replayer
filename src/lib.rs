@@ -163,6 +163,11 @@ impl<T> RingBuffer<T> {
         self.capacity
     }
 
+    /// Returns the resend window size of the queue.
+    pub fn resend_window(&self) -> usize {
+        self.resend_window
+    }
+
     /// Wraps a position from the range `0 .. 2 * capacity` to `0 .. capacity`.
     fn collapse_position(&self, pos: usize) -> usize {
         debug_assert!(pos == 0 || pos < 2 * self.capacity);
