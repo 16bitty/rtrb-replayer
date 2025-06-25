@@ -148,10 +148,10 @@ fn history_with_resend_window() {
 }
 
 #[test]
-fn history_virtual_indexing() {
+fn history_indexing() {
     let (mut p, mut c) = RingBuffer::new(3, 0);
     
-    let initial_head = c.virtual_head();
+    let initial_head = c.head();
     
     p.push(10).unwrap();
     p.push(20).unwrap();
@@ -160,11 +160,10 @@ fn history_virtual_indexing() {
     
     let history = c.history();
     
-    // Check virtual indices
     assert_eq!(history.start_index(), initial_head + 1);
     assert_eq!(history.end_index(), initial_head + 3);
     
-    // Check items at specific virtual indices
+    // Check items at specific indices
     assert_eq!(history.get(initial_head), None);
     assert_eq!(history.get(initial_head + 1), Some(&20));
     assert_eq!(history.get(initial_head + 2), Some(&30));
@@ -178,8 +177,8 @@ fn history_empty_buffer() {
     // Should be empty but valid
     assert_eq!(history.len(), 0);
     assert!(history.is_empty());
-    assert_eq!(history.start_index(), c.virtual_head());
-    assert_eq!(history.end_index(), c.virtual_head());
+    assert_eq!(history.start_index(), c.head());
+    assert_eq!(history.end_index(), c.head());
     assert_eq!(history.iter().next(), None);
 }
 
@@ -203,18 +202,18 @@ fn history_full_buffer() {
 fn history_position_access() {
     let (mut p, mut c) = RingBuffer::new(3, 0);
     
-    let start_pos = c.virtual_head();
+    let start_pos = c.head();
     
     p.push(100).unwrap();
     p.push(200).unwrap();
     
-    // Access messages by their specific virtual indices
+    // Access messages by their specific indices
     let history = c.history();
     assert_eq!(history.get(start_pos), Some(&100));
     assert_eq!(history.get(start_pos + 1), Some(&200));
     
     c.pop().unwrap();
     let history = c.history();
-    assert_eq!(history.get(start_pos), None); // No longer available
+    assert_eq!(history.get(start_pos), None);
     assert_eq!(history.get(start_pos + 1), Some(&200));
 }

@@ -746,8 +746,8 @@ impl<T> Consumer<T> {
         }
     }
 
-    /// Get the current virtual head position
-    pub fn virtual_head(&self) -> usize {
+    /// Get the current head position
+    pub fn head(&self) -> usize {
         self.buffer.tail.load(Ordering::Acquire);
         self.cached_head.get()
     }
@@ -763,15 +763,15 @@ pub struct HistoryWindow<'a, T> {
 }
 
 impl<'a, T> HistoryWindow<'a, T> {
-    /// Get message by virtual index
-    pub fn get(&self, virtual_index: usize) -> Option<&T> {
-        if virtual_index < self.start || virtual_index >= self.start + self.length {
+    /// Get message by index
+    pub fn get(&self, index: usize) -> Option<&T> {
+        if index < self.start || index >= self.start + self.length {
             return None;
         }
 
-        let physical_pos = self.buffer.collapse_position(virtual_index);
+        let real_pos = self.buffer.collapse_position(index);
         // SAFETY: Index is within valid range
-        Some(unsafe { &*self.buffer.slot_ptr(physical_pos) })
+        Some(unsafe { &*self.buffer.slot_ptr(real_pos) })
     }
 
     /// Iterate over messages in storage order
