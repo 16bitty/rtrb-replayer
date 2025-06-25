@@ -762,7 +762,7 @@ impl<T> Consumer<T> {
 #[derive(Debug)]
 pub struct HistoryWindow<'a, T> {
     buffer: &'a RingBuffer<T>,
-    start: usize,     // Virtual start position
+    start: usize,     // Start position
     length: usize,    // Number of messages in history
     _marker: PhantomData<&'a T>,
 }
@@ -774,9 +774,8 @@ impl<'a, T> HistoryWindow<'a, T> {
             return None;
         }
 
-        let real_pos = self.buffer.collapse_position(index);
         // SAFETY: Index is within valid range
-        Some(unsafe { &*self.buffer.slot_ptr(real_pos) })
+        Some(unsafe { &*self.buffer.slot_ptr(index) })
     }
 
     /// Iterate over messages in storage order
